@@ -15,6 +15,14 @@ const num = (v: unknown) => {
 
 export async function GET() {
   const now = Date.now();
+
+  if (!SUBGRAPH) {
+    return NextResponse.json(
+      { ok: false, error: "SUBGRAPH_NAME no configurado (defínelo en el entorno)", ts: now },
+      { status: 200 },
+    );
+  }
+
   const [status, metrics] = await Promise.all([fetchStatus(), fetchMetrics()]);
 
   if (!status) {

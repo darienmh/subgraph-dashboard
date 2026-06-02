@@ -1,7 +1,7 @@
 import { parsePrometheus, type Sample } from "./prometheus";
 
-export const SUBGRAPH = process.env.SUBGRAPH_NAME ?? "gmix-operations-prod";
-const STATUS_URL = process.env.GRAPH_STATUS_URL ?? "https://graph-status.samyca.com/graphql";
+export const SUBGRAPH = process.env.SUBGRAPH_NAME ?? "";
+const STATUS_URL = process.env.GRAPH_STATUS_URL ?? "";
 const METRICS_URL = process.env.GRAPH_METRICS_URL ?? "";
 
 export interface IndexingStatus {
@@ -27,6 +27,7 @@ export async function fetchStatus(): Promise<IndexingStatus | null> {
       chains { chainHeadBlock { number } latestBlock { number } earliestBlock { number } }
     }
   }`;
+  if (!STATUS_URL) return null;
   try {
     const res = await fetch(STATUS_URL, {
       method: "POST",

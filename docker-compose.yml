@@ -1,11 +1,15 @@
-# Deploy on srv5. Joins graph-node's internal network to read :8030 / :8040
+# Deploy behind Traefik. Joins graph-node's internal network to read :8030 / :8040
 # directly (no public metrics exposure), and the proxy network for Traefik.
+#
+# All instance-specific values come from a local .env (not committed):
+#   SUBGRAPH_NAME, GRAPH_STATUS_URL, GRAPH_METRICS_URL, DASH_HOST
+# plus the graph-node network name below if yours differs.
 networks:
   proxy:
     external: true
   graphnet:
     external: true
-    name: graph-node_graph   # graph-node compose project network ("graph")
+    name: ${GRAPH_NETWORK:-graph-node_graph}
 
 services:
   dashboard:
@@ -13,10 +17,8 @@ services:
     image: subgraph-dashboard:latest
     container_name: subgraph-dashboard
     restart: unless-stopped
+    env_file: .env
     environment:
-      SUBGRAPH_NAME: gmix-operations-prod
-      GRAPH_STATUS_URL: http://graph-node:8030/graphql
-      GRAPH_METRICS_URL: http://graph-node:8040/metrics
       PORT: "3009"
       HOSTNAME: 0.0.0.0
     networks:
@@ -24,10 +26,10 @@ services:
       - graphnet
     labels:
       - traefik.enable=true
-      - "traefik.http.routers.dashboard-gmix.rule=Host(`gmix-dash.samyca.com`)"
-      - traefik.http.routers.dashboard-gmix.entrypoints=websecure
-      - traefik.http.routers.dashboard-gmix.tls.certresolver=cloudflare
-      - traefik.http.routers.dashboard-gmix.service=dashboard-gmix
-      - traefik.http.services.dashboard-gmix.loadbalancer.server.port=3009
-      # To require basic auth, create a middleware and add:
-      # - traefik.http.routers.dashboard-gmix.middlewares=<your-auth>@file
+      - "traefik.http.routers.subgraph-dashboard.rule=Host(`${DASH_HOST}`)"
+      - traefik.http.routers.subgraph-dashboard.entrypoints=websecure
+      - traefik.http.routers.subgraph-dashboard.tls.certresolver=cloudflare
+      - traefik.http.routers.subgraph-dashboard.service=subgraph-dashboard
+      - traefik.http.services.subgraph-dashboard.loadbalancer.server.port=3009
+      # To require auth, create a middleware and add:
+      # - traefik.http.routers.subgraph-dashboard.middlewares=<your-auth>@file
