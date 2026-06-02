@@ -1,0 +1,33 @@
+# Deploy on srv5. Joins graph-node's internal network to read :8030 / :8040
+# directly (no public metrics exposure), and the proxy network for Traefik.
+networks:
+  proxy:
+    external: true
+  graphnet:
+    external: true
+    name: graph-node_graph   # graph-node compose project network ("graph")
+
+services:
+  dashboard:
+    build: .
+    image: subgraph-dashboard:latest
+    container_name: subgraph-dashboard
+    restart: unless-stopped
+    environment:
+      SUBGRAPH_NAME: gmix-operations-prod
+      GRAPH_STATUS_URL: http://graph-node:8030/graphql
+      GRAPH_METRICS_URL: http://graph-node:8040/metrics
+      PORT: "3009"
+      HOSTNAME: 0.0.0.0
+    networks:
+      - proxy
+      - graphnet
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.dashboard-gmix.rule=Host(`gmix-dash.samyca.com`)"
+      - traefik.http.routers.dashboard-gmix.entrypoints=websecure
+      - traefik.http.routers.dashboard-gmix.tls.certresolver=cloudflare
+      - traefik.http.routers.dashboard-gmix.service=dashboard-gmix
+      - traefik.http.services.dashboard-gmix.loadbalancer.server.port=3009
+      # To require basic auth, create a middleware and add:
+      # - traefik.http.routers.dashboard-gmix.middlewares=<your-auth>@file

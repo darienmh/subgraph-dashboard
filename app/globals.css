@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: radial-gradient(1200px 600px at 70% -10%, rgba(111, 76, 255, 0.18), transparent 60%), #0b0d17;
+  color: #e8e9f0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.card {
+  @apply rounded-2xl border border-white/5 bg-ink-800/70 p-5 shadow-lg shadow-black/20 backdrop-blur;
+}
+
+.label {
+  @apply text-xs uppercase tracking-wider text-white/40;
+}
+
+.value {
+  @apply text-2xl font-semibold tabular-nums text-white;
+}
+
+.badge {
+  @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
+}
