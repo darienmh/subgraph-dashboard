@@ -7,7 +7,16 @@ import { StatCard } from "@/components/StatCard";
 import { ProgressBar } from "@/components/ProgressBar";
 import { LiveChart } from "@/components/LiveChart";
 
-interface Stats {
+interface Raw {
+  blocksProcessed: number | null;
+  queries: number | null;
+  rpcCount: number | null;
+  rpcSum: number | null;
+  cacheHit: number | null;
+  cacheTotal: number | null;
+}
+
+interface Snapshot {
   ok: boolean;
   error?: string;
   ts: number;
@@ -23,17 +32,21 @@ interface Stats {
   blocksBehind?: number;
   syncPct?: number;
   metricsAvailable?: boolean;
-  blocksPerSec?: number | null;
-  queriesPerSec?: number | null;
-  rpcPerSec?: number | null;
-  rpcAvgMs?: number | null;
-  cacheHitPct?: number | null;
+  raw?: Raw | null;
   pool?: { size: number; checkedOut: number; waitMs: number } | null;
-  etaSeconds?: number | null;
 }
 
-const POLL_MS = 3000;
-const HISTORY = 40;
+interface Derived {
+  blocksPerSec: number | null;
+  queriesPerSec: number | null;
+  rpcPerSec: number | null;
+  rpcAvgMs: number | null;
+  cacheHitPct: number | null;
+  etaSeconds: number | null;
+}
+
+const POLL_MS = 10000;
+const HISTORY = 30;
 
 const fmt = (n?: number | null, d = 0) =>
   n == null ? "—" : n.toLocaleString("en-US", { maximumFractionDigits: d });
@@ -48,31 +61,74 @@ function fmtEta(secs?: number | null) {
   return `~${s}s`;
 }
 
+// Derive per-second rates from two consecutive raw snapshots (the client's poll window).
+function derive(cur: Snapshot, prev: { ts: number; raw: Raw } | null): Derived | null {
+  if (!cur.raw) return null; // metrics unavailable
+  if (!prev) return { blocksPerSec: null, queriesPerSec: null, rpcPerSec: null, rpcAvgMs: null, cacheHitPct: null, etaSeconds: null };
+  const dt = (cur.ts - prev.ts) / 1000;
+  if (dt <= 0) return { blocksPerSec: null, queriesPerSec: null, rpcPerSec: null, rpcAvgMs: null, cacheHitPct: null, etaSeconds: null };
+
+  const rate = (a: number | null, b: number | null) =>
+    a != null && b != null ? Math.max((a - b) / dt, 0) : null;
+
+  const blocksPerSec = rate(cur.raw.blocksProcessed, prev.raw.blocksProcessed);
+  const queriesPerSec = rate(cur.raw.queries, prev.raw.queries);
+  const rpcPerSec = rate(cur.raw.rpcCount, prev.raw.rpcCount);
+
+  let rpcAvgMs: number | null = null;
+  if (cur.raw.rpcCount != null && prev.raw.rpcCount != null && cur.raw.rpcSum != null && prev.raw.rpcSum != null) {
+    const dc = cur.raw.rpcCount - prev.raw.rpcCount;
+    const ds = cur.raw.rpcSum - prev.raw.rpcSum;
+    rpcAvgMs = dc > 0 ? (ds / dc) * 1000 : null;
+  }
+
+  let cacheHitPct: number | null = null;
+  if (cur.raw.cacheHit != null && prev.raw.cacheHit != null && cur.raw.cacheTotal != null && prev.raw.cacheTotal != null) {
+    const dh = cur.raw.cacheHit - prev.raw.cacheHit;
+    const dtot = cur.raw.cacheTotal - prev.raw.cacheTotal;
+    cacheHitPct = dtot > 0 ? (dh / dtot) * 100 : null;
+  }
+
+  const etaSeconds = blocksPerSec && blocksPerSec > 0 ? (cur.blocksBehind ?? 0) / blocksPerSec : null;
+
+  return { blocksPerSec, queriesPerSec, rpcPerSec, rpcAvgMs, cacheHitPct, etaSeconds };
+}
+
 export default function SubgraphDashboard() {
   const params = useParams();
   const subgraph = decodeURIComponent(String(params.subgraph ?? ""));
 
-  const [s, setS] = useState<Stats | null>(null);
+  const [s, setS] = useState<Snapshot | null>(null);
+  const [d, setD] = useState<Derived | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<{ t: number; v: number }[]>([]);
   const [queries, setQueries] = useState<{ t: number; v: number }[]>([]);
+  const prevRef = useRef<{ ts: number; raw: Raw } | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   useEffect(() => {
     let alive = true;
+    prevRef.current = null;
     setBlocks([]);
     setQueries([]);
+    setD(null);
+
     const tick = async () => {
       try {
         const res = await fetch(`/api/stats?subgraph=${encodeURIComponent(subgraph)}`, { cache: "no-store" });
-        const data: Stats = await res.json();
+        const data: Snapshot = await res.json();
         if (!alive) return;
         setErr(null);
         setS(data);
-        if (data.blocksPerSec != null)
-          setBlocks((h) => [...h, { t: data.ts, v: data.blocksPerSec! }].slice(-HISTORY));
-        if (data.queriesPerSec != null)
-          setQueries((h) => [...h, { t: data.ts, v: data.queriesPerSec! }].slice(-HISTORY));
+
+        const der = derive(data, prevRef.current);
+        setD(der);
+        if (data.raw) prevRef.current = { ts: data.ts, raw: data.raw };
+
+        if (der?.blocksPerSec != null)
+          setBlocks((h) => [...h, { t: data.ts, v: der.blocksPerSec! }].slice(-HISTORY));
+        if (der?.queriesPerSec != null)
+          setQueries((h) => [...h, { t: data.ts, v: der.queriesPerSec! }].slice(-HISTORY));
       } catch {
         if (alive) setErr("no se pudo conectar con /api/stats");
       }
@@ -91,9 +147,11 @@ export default function SubgraphDashboard() {
     : s?.health === "failed" ? "bg-red-500/15 text-red-300"
     : "bg-white/10 text-white/60";
 
+  const noMetrics = s != null && !s.metricsAvailable;
+  const collecting = (arr: unknown[]) => (noMetrics ? "métricas no disponibles (tunelea :8040)" : "recopilando…");
+
   return (
     <main className="mx-auto max-w-6xl px-5 py-8">
-      {/* header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href="/" className="text-xs text-white/40 hover:text-white/70">← subgraphs</Link>
@@ -115,7 +173,6 @@ export default function SubgraphDashboard() {
         <div className="card mb-4 border-amber-500/30 text-amber-300">{s.error ?? "subgraph sin estado"}</div>
       )}
 
-      {/* sync */}
       <div className="card mb-4">
         <div className="mb-3 flex items-end justify-between">
           <div>
@@ -124,7 +181,7 @@ export default function SubgraphDashboard() {
           </div>
           <div className="text-right">
             <div className="label">ETA</div>
-            <div className="text-xl font-semibold text-brand-soft">{fmtEta(s?.etaSeconds)}</div>
+            <div className="text-xl font-semibold text-brand-soft">{fmtEta(d?.etaSeconds)}</div>
           </div>
         </div>
         <ProgressBar pct={s?.syncPct ?? 0} />
@@ -137,9 +194,9 @@ export default function SubgraphDashboard() {
 
       <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard label="entidades" value={fmt(s?.entityCount)} accent />
-        <StatCard label="velocidad" value={fmt(s?.blocksPerSec)} sub="bloques / s" />
-        <StatCard label="queries" value={fmt(s?.queriesPerSec, 1)} sub="req / s (nodo)" />
-        <StatCard label="cache hit" value={s?.cacheHitPct == null ? "—" : `${fmt(s?.cacheHitPct, 1)}%`} />
+        <StatCard label="velocidad" value={fmt(d?.blocksPerSec)} sub="bloques / s" />
+        <StatCard label="queries" value={fmt(d?.queriesPerSec, 1)} sub="req / s (nodo)" />
+        <StatCard label="cache hit" value={d?.cacheHitPct == null ? "—" : `${fmt(d?.cacheHitPct, 1)}%`} />
       </div>
 
       <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -148,9 +205,7 @@ export default function SubgraphDashboard() {
           {blocks.length > 1 ? (
             <LiveChart data={blocks} dataKey="blocks" color="#8b6cff" unit="b/s" />
           ) : (
-            <div className="flex h-24 items-center justify-center text-sm text-white/40">
-              {s?.metricsAvailable ? "recopilando…" : "métricas no disponibles (tunelea :8040)"}
-            </div>
+            <div className="flex h-24 items-center justify-center text-sm text-white/40">{collecting(blocks)}</div>
           )}
         </div>
         <div className="card">
@@ -158,16 +213,14 @@ export default function SubgraphDashboard() {
           {queries.length > 1 ? (
             <LiveChart data={queries} dataKey="queries" color="#34d399" unit="q/s" />
           ) : (
-            <div className="flex h-24 items-center justify-center text-sm text-white/40">
-              {s?.metricsAvailable ? "recopilando…" : "métricas no disponibles (tunelea :8040)"}
-            </div>
+            <div className="flex h-24 items-center justify-center text-sm text-white/40">{collecting(queries)}</div>
           )}
         </div>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard label="RPC req/s" value={fmt(s?.rpcPerSec, 1)} />
-        <StatCard label="RPC latencia" value={s?.rpcAvgMs == null ? "—" : `${fmt(s?.rpcAvgMs)} ms`} />
+        <StatCard label="RPC req/s" value={fmt(d?.rpcPerSec, 1)} />
+        <StatCard label="RPC latencia" value={d?.rpcAvgMs == null ? "—" : `${fmt(d?.rpcAvgMs)} ms`} />
         <StatCard label="Postgres pool" value={s?.pool ? `${fmt(s.pool.checkedOut)}/${fmt(s.pool.size)}` : "—"} sub="en uso / total" />
         <StatCard label="conn wait" value={s?.pool ? `${fmt(s.pool.waitMs, 1)} ms` : "—"} />
       </div>

@@ -5,10 +5,6 @@ import { findOne, sumBy } from "@/lib/prometheus";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Per-subgraph previous scrape, to derive per-second rates from cumulative counters.
-type Prev = { ts: number; blocksProcessed?: number; queries?: number; rpc?: number };
-const prevByName = new Map<string, Prev>();
-
 const num = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -42,54 +38,25 @@ export async function GET(req: Request) {
   const blocksBehind = Math.max(chainHead - latest, 0);
   const syncPct = chainHead > 0 ? Math.min((latest / chainHead) * 100, 100) : 0;
 
-  let blocksPerSec: number | null = null;
-  let queriesPerSec: number | null = null;
-  let rpcPerSec: number | null = null;
-  let rpcAvgMs: number | null = null;
-  let cacheHitPct: number | null = null;
+  // Raw cumulative metrics — the client derives per-second rates from successive polls.
+  let raw: Record<string, number | null> | null = null;
   let pool: { size: number; checkedOut: number; waitMs: number } | null = null;
-  let etaSeconds: number | null = null;
 
   if (metrics) {
     const dep = { deployment };
-    const blocksProcessed = sumBy(metrics, "deployment_blocks_processed_count", dep) ?? findOne(metrics, "deployment_head", dep);
-    const queries = sumBy(metrics, "query_result_size_count");
-    // per-deployment RPC if available, else node-wide
-    const rpcCount = sumBy(metrics, "deployment_eth_rpc_request_duration_count", dep) ?? sumBy(metrics, "eth_rpc_request_duration_count");
-    const rpcSum = sumBy(metrics, "deployment_eth_rpc_request_duration_sum", dep) ?? sumBy(metrics, "eth_rpc_request_duration_sum");
-
-    const prev = prevByName.get(subgraph);
-    if (prev) {
-      const dt = (now - prev.ts) / 1000;
-      if (dt > 0) {
-        if (blocksProcessed != null && prev.blocksProcessed != null)
-          blocksPerSec = Math.max((blocksProcessed - prev.blocksProcessed) / dt, 0);
-        if (queries != null && prev.queries != null)
-          queriesPerSec = Math.max((queries - prev.queries) / dt, 0);
-        if (rpcCount != null && prev.rpc != null)
-          rpcPerSec = Math.max((rpcCount - prev.rpc) / dt, 0);
-      }
-    }
-    prevByName.set(subgraph, {
-      ts: now,
-      blocksProcessed: blocksProcessed ?? undefined,
-      queries: queries ?? undefined,
-      rpc: rpcCount ?? undefined,
-    });
-
-    if (rpcCount && rpcSum) rpcAvgMs = (rpcSum / rpcCount) * 1000;
-
-    const hit = sumBy(metrics, "query_cache_status_count", { cache_status: "hit" });
-    const totalCache = sumBy(metrics, "query_cache_status_count");
-    if (hit != null && totalCache && totalCache > 0) cacheHitPct = (hit / totalCache) * 100;
-
+    raw = {
+      blocksProcessed: sumBy(metrics, "deployment_blocks_processed_count", dep) ?? findOne(metrics, "deployment_head", dep) ?? null,
+      queries: sumBy(metrics, "query_result_size_count") ?? null,
+      rpcCount: sumBy(metrics, "deployment_eth_rpc_request_duration_count", dep) ?? sumBy(metrics, "eth_rpc_request_duration_count") ?? null,
+      rpcSum: sumBy(metrics, "deployment_eth_rpc_request_duration_sum", dep) ?? sumBy(metrics, "eth_rpc_request_duration_sum") ?? null,
+      cacheHit: sumBy(metrics, "query_cache_status_count", { cache_status: "hit" }) ?? null,
+      cacheTotal: sumBy(metrics, "query_cache_status_count") ?? null,
+    };
     const size = findOne(metrics, "store_connection_pool_size_count");
     const checkedOut = findOne(metrics, "store_connection_checkout_count");
     const waitMs = findOne(metrics, "store_connection_wait_time_ms");
     if (size != null || checkedOut != null || waitMs != null)
       pool = { size: size ?? 0, checkedOut: checkedOut ?? 0, waitMs: waitMs ?? 0 };
-
-    if (blocksPerSec && blocksPerSec > 0) etaSeconds = blocksBehind / blocksPerSec;
   }
 
   return NextResponse.json({
@@ -108,13 +75,8 @@ export async function GET(req: Request) {
     blocksBehind,
     syncPct,
     metricsAvailable: !!metrics,
-    blocksPerSec,
-    queriesPerSec,
-    rpcPerSec,
-    rpcAvgMs,
-    cacheHitPct,
+    raw,
     pool,
-    etaSeconds,
   });
 }
 
