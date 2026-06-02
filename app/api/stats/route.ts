@@ -5,29 +5,31 @@ import { findOne, sumBy } from "@/lib/prometheus";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Counters are cumulative; remember the previous scrape to derive per-second rates.
-let prev: { ts: number; blocksProcessed?: number; queries?: number; rpc?: number } | null = null;
+// Per-subgraph previous scrape, to derive per-second rates from cumulative counters.
+type Prev = { ts: number; blocksProcessed?: number; queries?: number; rpc?: number };
+const prevByName = new Map<string, Prev>();
 
 const num = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
 
-export async function GET() {
+export async function GET(req: Request) {
   const now = Date.now();
+  const subgraph = new URL(req.url).searchParams.get("subgraph") || SUBGRAPH;
 
-  if (!SUBGRAPH) {
+  if (!subgraph) {
     return NextResponse.json(
-      { ok: false, error: "SUBGRAPH_NAME no configurado (defínelo en el entorno)", ts: now },
+      { ok: false, error: "falta el subgraph (usa /name/<subgraph> o ?subgraph=)", ts: now },
       { status: 200 },
     );
   }
 
-  const [status, metrics] = await Promise.all([fetchStatus(), fetchMetrics()]);
+  const [status, metrics] = await Promise.all([fetchStatus(subgraph), fetchMetrics()]);
 
   if (!status) {
     return NextResponse.json(
-      { ok: false, error: "no status (subgraph not found or status endpoint down)", subgraph: SUBGRAPH, ts: now },
+      { ok: false, error: `subgraph "${subgraph}" no encontrado o status endpoint caído`, subgraph, ts: now },
       { status: 200 },
     );
   }
@@ -40,7 +42,6 @@ export async function GET() {
   const blocksBehind = Math.max(chainHead - latest, 0);
   const syncPct = chainHead > 0 ? Math.min((latest / chainHead) * 100, 100) : 0;
 
-  // --- metrics-derived (optional; null when metrics endpoint unreachable) ---
   let blocksPerSec: number | null = null;
   let queriesPerSec: number | null = null;
   let rpcPerSec: number | null = null;
@@ -53,9 +54,11 @@ export async function GET() {
     const dep = { deployment };
     const blocksProcessed = sumBy(metrics, "deployment_blocks_processed_count", dep) ?? findOne(metrics, "deployment_head", dep);
     const queries = sumBy(metrics, "query_result_size_count");
-    const rpcCount = sumBy(metrics, "eth_rpc_request_duration_count");
-    const rpcSum = sumBy(metrics, "eth_rpc_request_duration_sum");
+    // per-deployment RPC if available, else node-wide
+    const rpcCount = sumBy(metrics, "deployment_eth_rpc_request_duration_count", dep) ?? sumBy(metrics, "eth_rpc_request_duration_count");
+    const rpcSum = sumBy(metrics, "deployment_eth_rpc_request_duration_sum", dep) ?? sumBy(metrics, "eth_rpc_request_duration_sum");
 
+    const prev = prevByName.get(subgraph);
     if (prev) {
       const dt = (now - prev.ts) / 1000;
       if (dt > 0) {
@@ -67,7 +70,12 @@ export async function GET() {
           rpcPerSec = Math.max((rpcCount - prev.rpc) / dt, 0);
       }
     }
-    prev = { ts: now, blocksProcessed: blocksProcessed ?? undefined, queries: queries ?? undefined, rpc: rpcCount ?? undefined };
+    prevByName.set(subgraph, {
+      ts: now,
+      blocksProcessed: blocksProcessed ?? undefined,
+      queries: queries ?? undefined,
+      rpc: rpcCount ?? undefined,
+    });
 
     if (rpcCount && rpcSum) rpcAvgMs = (rpcSum / rpcCount) * 1000;
 
@@ -87,7 +95,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     ts: now,
-    subgraph: SUBGRAPH,
+    subgraph,
     deployment,
     synced: status.synced,
     health: status.health,

@@ -18,16 +18,16 @@ export interface IndexingStatus {
   }[];
 }
 
-export async function fetchStatus(): Promise<IndexingStatus | null> {
+export async function fetchStatus(subgraphName: string): Promise<IndexingStatus | null> {
+  if (!STATUS_URL || !subgraphName) return null;
   const query = `{
-    indexingStatusForCurrentVersion(subgraphName: "${SUBGRAPH}") {
+    indexingStatusForCurrentVersion(subgraphName: ${JSON.stringify(subgraphName)}) {
       subgraph synced health entityCount
       fatalError { message block { number } }
       nonFatalErrors { message }
       chains { chainHeadBlock { number } latestBlock { number } earliestBlock { number } }
     }
   }`;
-  if (!STATUS_URL) return null;
   try {
     const res = await fetch(STATUS_URL, {
       method: "POST",
