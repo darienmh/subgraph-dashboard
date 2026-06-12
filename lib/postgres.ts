@@ -3,7 +3,7 @@ import { Pool } from "pg";
 // Read-only connection to graph-node's Postgres (role `dash_ro`).
 // dev:   tunnel the container's 5432 to localhost and point GRAPH_PG_PG_URL there.
 // deploy: postgresql://dash_ro:***@graph-postgres:5432/graph-node over graphnet.
-const PG_URL = process.env.GRAPH_PG_PG_URL || "";
+const PG_URL = process.env.GRAPH_PG_URL || "";
 let _pool: Pool | null = null;
 
 function maskedUrl(url: string): string {
