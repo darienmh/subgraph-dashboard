@@ -9,12 +9,16 @@ export interface IndexingStatus {
   synced: boolean;
   health: string;
   entityCount: string;
-  fatalError: { message: string; block: { number: string } | null } | null;
+  node: string | null;
+  paused: boolean | null;
+  fatalError: { message: string; deterministic?: boolean; block: { number: string } | null } | null;
   nonFatalErrors: { message: string }[];
   chains: {
+    network: string | null;
     chainHeadBlock: { number: string } | null;
     latestBlock: { number: string } | null;
     earliestBlock: { number: string } | null;
+    lastHealthyBlock: { number: string } | null;
   }[];
 }
 
@@ -22,10 +26,10 @@ export async function fetchStatus(subgraphName: string): Promise<IndexingStatus 
   if (!STATUS_URL || !subgraphName) return null;
   const query = `{
     indexingStatusForCurrentVersion(subgraphName: ${JSON.stringify(subgraphName)}) {
-      subgraph synced health entityCount
-      fatalError { message block { number } }
+      subgraph synced health entityCount node paused
+      fatalError { message deterministic block { number } }
       nonFatalErrors { message }
-      chains { chainHeadBlock { number } latestBlock { number } earliestBlock { number } }
+      chains { network chainHeadBlock { number } latestBlock { number } earliestBlock { number } lastHealthyBlock { number } }
     }
   }`;
   try {

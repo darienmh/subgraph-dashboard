@@ -55,3 +55,15 @@ export function sumBy(samples: Sample[], name: string, match?: Record<string, st
   }
   return found ? total : undefined;
 }
+
+/**
+ * Cumulative average of a Prometheus histogram: `<base>_sum / <base>_count`.
+ * Robust for an already-synced node (unlike per-second rates, which trend to 0):
+ * it reflects the lifetime average latency. Returns undefined if absent or count 0.
+ */
+export function histogramAvg(samples: Sample[], base: string, match?: Record<string, string>): number | undefined {
+  const sum = sumBy(samples, `${base}_sum`, match);
+  const count = sumBy(samples, `${base}_count`, match);
+  if (sum == null || count == null || count === 0) return undefined;
+  return sum / count;
+}

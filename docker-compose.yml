@@ -1,8 +1,10 @@
 # Deploy behind Traefik. Joins graph-node's internal network to read :8030 / :8040
 # directly (no public metrics exposure), and the proxy network for Traefik.
+# The Docker socket is mounted read-only so the Logs tab can read graph-node's
+# container logs (Docker Engine API) without exposing them publicly.
 #
 # All instance-specific values come from a local .env (not committed):
-#   SUBGRAPH_NAME, GRAPH_STATUS_URL, GRAPH_METRICS_URL, DASH_HOST
+#   SUBGRAPH_NAME, GRAPH_STATUS_URL, GRAPH_METRICS_URL, DASH_HOST, GRAPH_CONTAINER
 # plus the graph-node network name below if yours differs.
 networks:
   proxy:
@@ -21,6 +23,9 @@ services:
     environment:
       PORT: "3009"
       HOSTNAME: 0.0.0.0
+    volumes:
+      # read-only Docker socket for the Logs tab (reads graph-node container logs)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - proxy
       - graphnet
@@ -31,5 +36,6 @@ services:
       - traefik.http.routers.subgraph-dashboard.tls.certresolver=cloudflare
       - traefik.http.routers.subgraph-dashboard.service=subgraph-dashboard
       - traefik.http.services.subgraph-dashboard.loadbalancer.server.port=3009
-      # To require auth, create a middleware and add:
-      # - traefik.http.routers.subgraph-dashboard.middlewares=<your-auth>@file
+      # Optional auth: set DASH_MIDDLEWARES in .env to a Traefik middleware ref
+      # (e.g. dashboard-auth@file for basic auth). Leave empty for a public dashboard.
+      - "traefik.http.routers.subgraph-dashboard.middlewares=${DASH_MIDDLEWARES:-}"
