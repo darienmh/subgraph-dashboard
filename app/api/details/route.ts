@@ -45,11 +45,13 @@ export async function GET(req: Request) {
       startBlock: man?.start_block_number ?? null,
     });
   } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error("[details] query failed:", detail);
     return NextResponse.json({
       ok: false,
       ts: now,
       error: "details query failed — is Postgres reachable (GRAPH_PG_URL / tunnel)?",
-      detail: e instanceof Error ? e.message : String(e),
+      detail,
     });
   }
 }
