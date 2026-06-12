@@ -8,7 +8,7 @@ let _pool: Pool | null = null;
 
 function maskedUrl(url: string): string {
   try {
-    const u = new PG_URL(url);
+    const u = new URL(url);
     u.password = "***";
     return u.toString();
   } catch {
