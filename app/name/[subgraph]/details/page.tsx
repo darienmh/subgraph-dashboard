@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSubgraph } from "@/lib/use-subgraph";
+import { apiPath } from "@/lib/api-path";
 
 interface Details {
   ok: boolean;
@@ -35,7 +36,7 @@ export default function DetailsPage() {
   useEffect(() => {
     if (!deployment) return;
     let alive = true;
-    fetch(`/api/details?deployment=${encodeURIComponent(deployment)}`, { cache: "no-store" })
+    fetch(apiPath(`/api/details?deployment=${encodeURIComponent(deployment)}`), { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => alive && setD(data))
       .catch(() => alive && setD({ ok: false, error: "could not reach /api/details" }));

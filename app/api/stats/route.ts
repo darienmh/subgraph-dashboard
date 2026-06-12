@@ -5,6 +5,8 @@ import { findOne, sumBy, histogramAvg } from "@/lib/prometheus";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+console.log("[stats] route loaded — GRAPH_STATUS_URL:", process.env.GRAPH_STATUS_URL || "(not set)");
+
 const num = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -33,9 +35,11 @@ export async function GET(req: Request) {
     );
   }
 
+  console.log(`[stats] GET subgraph="${subgraph}"`);
   const [status, metrics] = await Promise.all([fetchStatus(subgraph), fetchMetrics()]);
 
   if (!status) {
+    console.error(`[stats] no status returned for subgraph="${subgraph}" — GRAPH_STATUS_URL="${process.env.GRAPH_STATUS_URL}"`);
     return NextResponse.json(
       { ok: false, error: `subgraph "${subgraph}" not found or status endpoint down`, subgraph, ts: now },
       { status: 200 },

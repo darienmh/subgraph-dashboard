@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSubgraph } from "@/lib/use-subgraph";
+import { apiPath } from "@/lib/api-path";
 import { SeriesChart } from "@/components/SeriesChart";
 
 interface Sample {
@@ -49,7 +50,7 @@ export default function AnalyticsPage() {
     let alive = true;
     const tick = async () => {
       try {
-        const res = await fetch(`/api/series?subgraph=${encodeURIComponent(subgraph)}`, { cache: "no-store" });
+        const res = await fetch(apiPath(`/api/series?subgraph=${encodeURIComponent(subgraph)}`), { cache: "no-store" });
         const data = await res.json();
         if (alive && data.ok) setSamples(data.samples ?? []);
       } catch {

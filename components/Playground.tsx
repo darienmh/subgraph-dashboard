@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiPath } from "@/lib/api-path";
 
 const DEFAULT_QUERY = `{
   _meta {
@@ -31,7 +32,7 @@ export function Playground({ deployment }: { deployment?: string }) {
     }
     setRunning(true);
     try {
-      const res = await fetch("/api/query", {
+      const res = await fetch(apiPath("/api/query"), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ query, variables, deployment }),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { apiPath } from "@/lib/api-path";
 
 interface Entity {
   name: string;
@@ -24,7 +25,7 @@ export function EntitiesTable({ deployment }: { deployment?: string }) {
     if (!deployment) return;
     let alive = true;
     setLoading(true);
-    fetch(`/api/entities?deployment=${encodeURIComponent(deployment)}`, { cache: "no-store" })
+    fetch(apiPath(`/api/entities?deployment=${encodeURIComponent(deployment)}`), { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (!alive) return;
