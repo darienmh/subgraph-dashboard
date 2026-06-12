@@ -2,7 +2,7 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci 2>/dev/null || npm install
+RUN npm ci
 
 # --- build ---
 FROM node:22-alpine AS builder

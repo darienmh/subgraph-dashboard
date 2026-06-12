@@ -1,0 +1,14 @@
+image: node:22-alpine
+
+stages:
+  - build
+  - docker
+
+variables:
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
+  DOCKER_BUILDKIT: "1"
+
+include:
+  - local: /.gitlab/ci/cache.yml
+  - local: /.gitlab/ci/build.yml
+  - local: /.gitlab/ci/docker.yml

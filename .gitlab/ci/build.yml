@@ -1,0 +1,11 @@
+---
+# Compila el proyecto Next.js para validar que no hay errores de build.
+# No genera artefactos para Docker — el Dockerfile hace su propio build (multi-stage).
+build-job:
+  stage: build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: $CI_COMMIT_BRANCH
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm run build
