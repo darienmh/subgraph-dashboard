@@ -25,7 +25,7 @@ export default function Home() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="subgraph-name"
-          className="flex-1 rounded-xl border border-white/10 bg-ink-700 px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-brand"
+          className="flex-1 rounded-xl border border-white/10 bg-ink-700 px-4 py-3 text-white outline-hidden placeholder:text-white/30 focus:border-brand"
         />
         <button
           type="submit"

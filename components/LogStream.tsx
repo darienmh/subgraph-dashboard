@@ -101,7 +101,7 @@ export function LogStream({ deployment }: { deployment?: string }) {
           <select
             value={level}
             onChange={(e) => setLevel(e.target.value)}
-            className="rounded-lg border border-white/10 bg-ink-700 px-2 py-1 text-white outline-none focus:border-brand"
+            className="rounded-lg border border-white/10 bg-ink-700 px-2 py-1 text-white outline-hidden focus:border-brand"
           >
             {LEVELS.map((l) => (
               <option key={l.key} value={l.key}>{l.label}</option>
@@ -114,7 +114,7 @@ export function LogStream({ deployment }: { deployment?: string }) {
           <select
             value={range}
             onChange={(e) => setRange(e.target.value)}
-            className="rounded-lg border border-white/10 bg-ink-700 px-2 py-1 text-white outline-none focus:border-brand"
+            className="rounded-lg border border-white/10 bg-ink-700 px-2 py-1 text-white outline-hidden focus:border-brand"
           >
             {RANGES.map((r) => (
               <option key={r.key} value={r.key}>{r.label}</option>
@@ -126,7 +126,7 @@ export function LogStream({ deployment }: { deployment?: string }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="search…"
-          className="min-w-[160px] flex-1 rounded-lg border border-white/10 bg-ink-700 px-3 py-1 text-white outline-none placeholder:text-white/30 focus:border-brand"
+          className="min-w-[160px] flex-1 rounded-lg border border-white/10 bg-ink-700 px-3 py-1 text-white outline-hidden placeholder:text-white/30 focus:border-brand"
         />
 
         <button

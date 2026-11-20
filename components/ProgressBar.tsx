@@ -3,7 +3,7 @@ export function ProgressBar({ pct }: { pct: number }) {
   return (
     <div className="h-3 w-full overflow-hidden rounded-full bg-ink-600">
       <div
-        className="h-full rounded-full bg-gradient-to-r from-brand-dark via-brand to-brand-soft transition-[width] duration-700 ease-out"
+        className="h-full rounded-full bg-linear-to-r from-brand-dark via-brand to-brand-soft transition-[width] duration-700 ease-out"
         style={{ width: `${clamped}%` }}
       />
     </div>

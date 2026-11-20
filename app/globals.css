@@ -1,6 +1,43 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@source "../app";
+@source "../components";
+
+@theme {
+  /* The Graph-ish palette */
+  --color-brand: #6f4cff;
+  --color-brand-soft: #8b6cff;
+  --color-brand-dark: #4f35c9;
+
+  --color-ink-900: #0b0d17;
+  --color-ink-800: #11131f;
+  --color-ink-700: #1a1d2e;
+  --color-ink-600: #262a3d;
+}
+
+/*
+  Tailwind v3 compatibility: v4 changed the default border color to
+  currentColor, the placeholder color and the button cursor.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 :root {
   color-scheme: dark;
@@ -13,7 +50,7 @@ body {
 }
 
 .card {
-  @apply rounded-2xl border border-white/5 bg-ink-800/70 p-5 shadow-lg shadow-black/20 backdrop-blur;
+  @apply rounded-2xl border border-white/5 bg-ink-800/70 p-5 shadow-lg shadow-black/20 backdrop-blur-sm;
 }
 
 .label {
