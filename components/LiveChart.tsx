@@ -27,7 +27,7 @@ export function LiveChart({
           <Tooltip
             contentStyle={{ background: "#11131f", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, fontSize: 12 }}
             labelFormatter={() => ""}
-            formatter={(value: number) => [`${Math.round(value).toLocaleString()} ${unit}`, ""]}
+            formatter={(value) => [`${Math.round(Number(value)).toLocaleString()} ${unit}`, ""]}
           />
           <Area type="monotone" dataKey="v" stroke={color} strokeWidth={2} fill={`url(#grad-${dataKey})`} isAnimationActive={false} />
         </AreaChart>

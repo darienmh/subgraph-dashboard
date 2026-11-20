@@ -65,14 +65,14 @@ export function Playground({ deployment }: { deployment?: string }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             spellCheck={false}
-            className="h-64 w-full resize-none rounded-lg border border-white/10 bg-ink-700 p-3 font-mono text-xs text-white outline-none focus:border-brand"
+            className="h-64 w-full resize-none rounded-lg border border-white/10 bg-ink-700 p-3 font-mono text-xs text-white outline-hidden focus:border-brand"
           />
           <textarea
             value={vars}
             onChange={(e) => setVars(e.target.value)}
             spellCheck={false}
             placeholder='variables (JSON, optional) e.g. { "first": 5 }'
-            className="h-20 w-full resize-none rounded-lg border border-white/10 bg-ink-700 p-3 font-mono text-xs text-white outline-none placeholder:text-white/30 focus:border-brand"
+            className="h-20 w-full resize-none rounded-lg border border-white/10 bg-ink-700 p-3 font-mono text-xs text-white outline-hidden placeholder:text-white/30 focus:border-brand"
           />
         </div>
         <pre className="h-[22rem] overflow-auto rounded-lg border border-white/10 bg-ink-900/60 p-3 font-mono text-xs text-white/70">

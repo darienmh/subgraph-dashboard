@@ -48,8 +48,8 @@ export function SeriesChart({
           />
           <Tooltip
             contentStyle={{ background: "#11131f", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, fontSize: 12 }}
-            labelFormatter={(t: number) => new Date(t).toLocaleTimeString("en-US", { hour12: false })}
-            formatter={(value: number) => [`${value.toLocaleString("en-US", { maximumFractionDigits: 2 })} ${unit}`, ""]}
+            labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString("en-US", { hour12: false })}
+            formatter={(value) => [`${Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${unit}`, ""]}
           />
           <Area type="monotone" dataKey="v" stroke={color} strokeWidth={2} fill={`url(#g-${id})`} isAnimationActive={false} />
         </AreaChart>
