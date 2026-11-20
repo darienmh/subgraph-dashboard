@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { apiPath } from "@/lib/api-path";
 
 export interface Raw {
   blocksProcessed: number | null;
@@ -98,7 +99,7 @@ export function SubgraphProvider({ subgraph, children }: { subgraph: string; chi
 
     const tick = async () => {
       try {
-        const res = await fetch(`/api/stats?subgraph=${encodeURIComponent(subgraph)}`, { cache: "no-store" });
+        const res = await fetch(apiPath(`/api/stats?subgraph=${encodeURIComponent(subgraph)}`), { cache: "no-store" });
         const data: Snapshot = await res.json();
         if (!alive) return;
         setErr(null);

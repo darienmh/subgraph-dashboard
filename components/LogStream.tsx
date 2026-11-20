@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { apiPath } from "@/lib/api-path";
 
 interface LogLine {
   ts: number;
@@ -61,7 +62,7 @@ export function LogStream({ deployment }: { deployment?: string }) {
       if (deployment) params.set("deployment", deployment); // always scoped to this subgraph
       if (search.trim()) params.set("search", search.trim());
       try {
-        const res = await fetch(`/api/logs?${params.toString()}`, { cache: "no-store" });
+        const res = await fetch(apiPath(`/api/logs?${params.toString()}`), { cache: "no-store" });
         const data = await res.json();
         if (!alive) return;
         if (!data.ok) {

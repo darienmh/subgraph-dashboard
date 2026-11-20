@@ -23,7 +23,11 @@ export interface IndexingStatus {
 }
 
 export async function fetchStatus(subgraphName: string): Promise<IndexingStatus | null> {
-  if (!STATUS_URL || !subgraphName) return null;
+  if (!STATUS_URL) {
+    console.error("[graphnode] fetchStatus: GRAPH_STATUS_URL is not set");
+    return null;
+  }
+  if (!subgraphName) return null;
   const query = `{
     indexingStatusForCurrentVersion(subgraphName: ${JSON.stringify(subgraphName)}) {
       subgraph synced health entityCount node paused
@@ -39,9 +43,18 @@ export async function fetchStatus(subgraphName: string): Promise<IndexingStatus 
       body: JSON.stringify({ query }),
       cache: "no-store",
     });
+    if (!res.ok) {
+      console.error(`[graphnode] fetchStatus: HTTP ${res.status} from ${STATUS_URL}`);
+      return null;
+    }
     const json = await res.json();
-    return json?.data?.indexingStatusForCurrentVersion ?? null;
-  } catch {
+    const result = json?.data?.indexingStatusForCurrentVersion ?? null;
+    if (!result) {
+      console.warn(`[graphnode] fetchStatus: subgraph "${subgraphName}" not found. GraphQL errors: ${JSON.stringify(json?.errors)}`);
+    }
+    return result;
+  } catch (err) {
+    console.error(`[graphnode] fetchStatus: failed to reach ${STATUS_URL} —`, err);
     return null;
   }
 }
@@ -50,9 +63,13 @@ export async function fetchMetrics(): Promise<Sample[] | null> {
   if (!METRICS_URL) return null;
   try {
     const res = await fetch(METRICS_URL, { cache: "no-store" });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`[graphnode] fetchMetrics: HTTP ${res.status} from ${METRICS_URL}`);
+      return null;
+    }
     return parsePrometheus(await res.text());
-  } catch {
+  } catch (err) {
+    console.error(`[graphnode] fetchMetrics: failed to reach ${METRICS_URL} —`, err);
     return null;
   }
 }

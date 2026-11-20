@@ -48,11 +48,13 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ ok: true, ts: now, schema, count: entities.length, totalRows, entities });
   } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error("[entities] query failed:", detail);
     return NextResponse.json({
       ok: false,
       ts: now,
       error: "entities query failed — is Postgres reachable (GRAPH_PG_URL / tunnel)?",
-      detail: e instanceof Error ? e.message : String(e),
+      detail,
     });
   }
 }

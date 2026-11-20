@@ -3,25 +3,41 @@ import { Pool } from "pg";
 // Read-only connection to graph-node's Postgres (role `dash_ro`).
 // dev:   tunnel the container's 5432 to localhost and point GRAPH_PG_URL there.
 // deploy: postgresql://dash_ro:***@graph-postgres:5432/graph-node over graphnet.
-const URL = process.env.GRAPH_PG_URL || "";
+const PG_URL = process.env.GRAPH_PG_URL || "";
 let _pool: Pool | null = null;
 
+function maskedUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.password = "***";
+    return u.toString();
+  } catch {
+    return "(invalid PG_URL)";
+  }
+}
+
 function pool(): Pool | null {
-  if (!URL) return null;
+  if (!PG_URL) return null;
   if (!_pool) {
+    console.log("[postgres] creating pool — connecting to:", maskedUrl(PG_URL));
     _pool = new Pool({
-      connectionString: URL,
+      connectionString: PG_URL,
       max: 3,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 8000,
-      statement_timeout: 8000,
+    });
+    _pool.on("error", (err) => {
+      console.error("[postgres] pool error:", err.message);
+    });
+    _pool.on("connect", () => {
+      console.log("[postgres] new client connected");
     });
   }
   return _pool;
 }
 
 export function pgAvailable(): boolean {
-  return !!URL;
+  return !!PG_URL;
 }
 
 export async function pgQuery<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {

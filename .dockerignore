@@ -1,0 +1,15 @@
+.git
+.gitignore
+.gitlab
+.gitlab-ci.yml
+
+node_modules
+.next
+.npm
+
+.env
+.env.*
+!.env.example
+
+Dockerfile*
+*.md
